@@ -766,6 +766,31 @@ alextube.prototype.processResult = function (partnumber, enqueue, offset) {
     var playFunction = this;
     var audioStreamInfo = ytdl.getInfo(url, { filter: function(format) { return format.container === 'm4a'; } }, function (err,info){
         console.log(info)
+
+        if (info.formats) {
+            
+            var format = null;
+
+            for (var i = 0; i < info.formats.length; i++) {
+
+                console.log("Testing format with container type: " + info.formats[i].container);
+
+                if (info.formats[i].container === 'm4a') {
+
+                    format = info.formats[i];
+
+                    break;
+                }
+            }
+
+            if (format) {
+                
+                playFunction.playFromUrl(format.url, enqueue, offset);
+
+                return;
+            }
+        }
+
         var contentduration = info.length_seconds
         settings.tracksettings[currentresult].duration = contentduration
         console.log ('Duration is ', contentduration)
@@ -1259,64 +1284,78 @@ alextube.prototype.upload = function(enqueue, offset) {
                         } else if (result){
                             console.log('Here is the temp link')
                             console.log(result.link)
-                            var streamURL = result.link
-                            
-                            fs.unlink(mainOutput, err => {
-                              if(err) console.error(err);
-                              
-                            });
-                            if (!enqueue){
-                                console.log('normal play')
-                                var token = uploadfuntion.createToken();
-                                settings.currenttoken = token
-                                settings.enqueue = false
-                                settings.currentURL = streamURL;
-                                
-                            
-                            uploadfuntion.saveSettings(function(err, result)  {
-                                    if (err) {
-                                        console.log('There was an error saving settings to dropbox', err)
-
-                                        uploadfuntion.speak('There was an error saving settings to dropbox')
-                                    } else {
-                                        
-                                         
-                                        uploadfuntion.play(streamURL, offset, token);
-                                    }
-                                });      
-                                
-                            } else {
-                                console.log('enque play')
-                                var previoustoken = settings.currenttoken
-                                
-                                var token = uploadfuntion.createToken();
-                                settings.currenttoken = token
-                                settings.enqueue = true
-                                
-                                settings.previousURL = settings.currentURL
-                                settings.currentURL = streamURL;
-                                
-                                
-                            
-                            uploadfuntion.saveSettings(function(err, result)  {
-                                    if (err) {
-                                        console.log('There was an error saving settings to dropbox', err)
-
-                                        uploadfuntion.speak('There was an error saving settings to dropbox')
-                                    } else {
-                                        
-                                         
-                                        uploadfuntion.enqueue(streamURL, 0, token, previoustoken);
-                                    }
-                                });
-
-                            }
-
-                        }
                         
+                            fs.unlink(mainOutput, err => {
+                                if (err) console.error(err);
+                            });
+    
+                            var streamURL = result.link;
+    
+                            uploadfuntion.playFromUrl(streamURL, offset, token);
+                        }
                     });
                 }
             });
     var readmp4 = fs.createReadStream(mainOutput).pipe(dropboxUploadStream);
 
+}
+
+alextube.prototype.playFromUrl = function(url, enqueue, offset) {
+    
+    var uploadfuntion = this;
+
+    console.log('Here is the play link');
+
+    var streamURL = url;
+
+    if (!enqueue) {
+
+        console.log('normal play');
+
+        var token = uploadfuntion.createToken();
+        settings.currenttoken = token;
+        settings.enqueue = false;
+        settings.currentURL = streamURL;
+        
+        uploadfuntion.saveSettings(function(err, result) {
+
+            if (err) {
+
+                console.log('There was an error saving settings to dropbox', err);
+
+                uploadfuntion.speak('There was an error saving settings to dropbox');
+            }
+            else {
+                    
+                uploadfuntion.play(streamURL, offset, token);
+            }
+        });      
+    }
+    else {
+
+        console.log('enque play');
+
+        var previoustoken = settings.currenttoken;
+        
+        var token = uploadfuntion.createToken();
+        settings.currenttoken = token;
+        settings.enqueue = true;
+        
+        settings.previousURL = settings.currentURL;
+        settings.currentURL = streamURL;
+    
+        uploadfuntion.saveSettings(function(err, result) {
+
+            if (err) {
+
+                console.log('There was an error saving settings to dropbox', err);
+
+                uploadfuntion.speak('There was an error saving settings to dropbox');
+            }
+            else {
+                    
+                uploadfuntion.enqueue(streamURL, 0, token, previoustoken);
+            }
+        });
+    }
 }
